@@ -8,34 +8,51 @@ process 11,842 times, saving the punch for the very end. Stdlib only,
 no network, no randomness, fully deterministic.
 """
 
+import argparse
 import os
 import sys
 
-LINE = (
+ENTRY_LINE = (
     "I hereby resign: after explaining the password-reset process "
     "11,842 times, I have decided the 11,843rd explanation will be "
     "my farewell."
 )
 
-DEST_DIR = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
 DEST_NAME = "entry.txt"
 
 
-def main():
-    line = LINE.strip()
+def validate(text: str) -> str:
+    """Gate: entry must be 1-140 chars, one clean line."""
+    line = text.strip()
     assert 1 <= len(line) <= 140, "line must be 1-140 characters, got %d" % len(line)
     assert "\n" not in line, "line must be a single line"
     assert line == line.strip(), "line must have no leading/trailing whitespace"
-    os.makedirs(DEST_DIR, exist_ok=True)
-    target = os.path.join(DEST_DIR, DEST_NAME)
-    with open(target, "w", encoding="utf-8") as handle:
-        handle.write(line + "\n")
+    return line
+
+
+def write_entry(text: str, path: str) -> None:
+    """Write the line plus a trailing newline and verify the round-trip."""
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write(text + "\n")
     # Read the file back and verify the grader will see exactly our line.
-    with open(target, "r", encoding="utf-8") as handle:
+    with open(path, "r", encoding="utf-8") as handle:
         written = handle.read()
-    if written != line + "\n":
-        print("GALAT: isi keluaran tidak sama dengan line", file=sys.stderr)
-        return 2
+    assert written == text + "\n", "written entry.txt differs from the line"
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--output", default=None,
+        help="path of the entry file to write "
+        "(default: $MAKEFUN_OUTPUT_DIR/entry.txt, else /output/entry.txt)",
+    )
+    args = parser.parse_args()
+    dest_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
+    target = args.output or os.path.join(dest_dir, DEST_NAME)
+    line = validate(ENTRY_LINE)
+    write_entry(line, target)
     print("Wrote %d characters to %s" % (len(line), target))
     print(line)
     return 0
